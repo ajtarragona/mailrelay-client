@@ -6,26 +6,26 @@ class SmtpEmails extends RestModel
 {
   protected $model_name = "smtp_emails";
 
-  // Atributos retornados por el servicio
-  protected $attributes = ["id", "name", "created_at", "updated_at"];
-
-  //atributos rellenables en el update o create
-  protected $fillable = [];
-
-  protected $dates = ["processed_at", "delivered_at", "soft_bounced_at"];
+  protected $attributes = ["id", "subscriber_id", "email", "status", "processed_at", "delivered_at", "bounced_at", "bounce_category", "bounce_message", "soft_bounced_at", "updated_at", "reported_as_spam", "message_id", "sender_email", "used_credits", "impressions", "smtp_tags"];
 
 
+  protected $dates = ["processed_at", "delivered_at", "bounced_at", "soft_bounced_at", "updated_at"];
 
+  /** No tiene create */
   public static function create(array $values = [])
   {
-    if (!isset($values["name"])) return null;
+    return false;
+  }
 
-    //si ya existe con el mismo nombre la devuelvo
-    $current = self::search(["name_eq" => $values["name"]]);
-    if ($current->isNotEmpty()) return $current->first();
+  /* NO tiene update */
+  public static function updateStatic($id, array $values)
+  {
+    return false;
+  }
 
-
-    //si no, la creo llamando al create el RestModel
-    return parent::create($values);
+  /* NO tiene delete */
+  public static function destroy($id, array $values = [])
+  {
+    return false;
   }
 }

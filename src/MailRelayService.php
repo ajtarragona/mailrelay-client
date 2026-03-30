@@ -11,6 +11,7 @@ use Ajtarragona\MailRelay\Models\MediaFile;
 use Ajtarragona\MailRelay\Models\MediaFolder;
 use Ajtarragona\MailRelay\Models\Sender;
 use Ajtarragona\MailRelay\Models\SentCampaign;
+use Ajtarragona\MailRelay\Models\SmtpEmails;
 use Ajtarragona\MailRelay\Traits\IsRestClient;
 use Illuminate\Database\Events\StatementPrepared;
 use Illuminate\Support\Facades\Storage;
@@ -364,5 +365,20 @@ class MailRelayService
     {
         // Lógica para filtrar tus remitentes
         return collect($this->getSenders())->firstWhere('email', $email);
+    }
+
+    public function getSmtpEmails()
+    {
+        return SmtpEmails::all();
+    }
+
+    public function getSmtpEmail($id)
+    {
+        return SmtpEmails::find($id);
+    }
+
+    public function getSmtpEmailByMessageId($messageId)
+    {
+        return SmtpEmails::search(['message_id_eq' => $messageId]);
     }
 }

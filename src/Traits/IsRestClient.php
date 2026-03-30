@@ -4,141 +4,98 @@ namespace Ajtarragona\MailRelay\Traits;
 
 use Ajtarragona\MailRelay\Exceptions\MailRelayAuthException;
 use Ajtarragona\MailRelay\Exceptions\MailRelayConnectionException;
-use GuzzleHttp\Client;
-use GuzzleHttp\Exception\RequestException;
-use GuzzleHttp\Exception\ConnectException;
-use Log;
-use Exception;
-use GuzzleHttp\Exception\ClientException;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 trait IsRestClient
 {
-	
-	protected $client;
 	protected $options;
 	protected $api_url;
 	protected $api_key;
 	protected $debug;
-	
 
+	public function __construct($options = [])
+	{
+		$opts = config('mailrelay');
+		if ($options) $opts = array_merge($opts, $options);
 
-	public function __construct($options=array()) { 
-		$opts=config('mailrelay');
-		if($options) $opts=array_merge($opts,$options);
-		$this->options= json_decode(json_encode($opts), FALSE);
-        // dump($this->options);
-		$this->debug = $this->options->debug;
-		$this->api_url = rtrim($this->options->api_url,"/")."/"; //le quito la barra final si la tiene y se la vuelvo a poner. Asi me aseguro que siempre acaba en barra.
+		$this->options = json_decode(json_encode($opts), FALSE);
+		$this->debug = $this->options->debug ?? false;
+		$this->api_url = rtrim($this->options->api_url, "/") . "/";
 		$this->api_key = $this->options->api_key;
-        
 	}
 
-
-	private function connect(){
-		if(!$this->client){
-
-			
-			if($this->debug) Log::debug("MailRelay: Connecting to API:" .$this->api_url);
-
-
-			$this->client = new Client([
-				'base_uri' => $this->api_url
-			]);
-		
-		}
+	/**
+	 * Prepara la petición base con headers
+	 */
+	protected function client()
+	{
+		return Http::withHeaders([
+			'X-AUTH-TOKEN' => $this->api_key,
+			'Accept'       => 'application/json',
+		])->baseUrl($this->api_url);
 	}
-	
 
-	protected function call($method, $url, $args=[]){
-		$url=ltrim($url,"/");
-		if(!$url) return false;
+	public function restGet($url, $params = [])
+	{
+		return $this->call('GET', $url, $params);
+	}
 
-		$this->connect();
-		
-		//forzar header json
-		if(isset($args["headers"])){
-			$args["headers"]=array_merge($args["headers"],[
-				'X-AUTH-TOKEN' => $this->api_key,
-				'Accept'     => 'application/json'
-			]);
-		}else{
-			$args["headers"]=[
-				'X-AUTH-TOKEN' => $this->api_key,
-				'Accept'     => 'application/json'
-			];
-		}
+	public function restPost($url, $body = [])
+	{
+		return $this->call('POST', $url, $body);
+	}
 
+	public function restPut($url, $body = [])
+	{
+		return $this->call('PUT', $url, $body);
+	}
 
-		
-		if($this->debug){
-			Log::debug("MailRelay: Calling $method to url:" .$this->api_url."".$url);
-			Log::debug("MailRelay: Options:");
-			Log::debug($args);
-		}
-		
+	public function restDelete($url, $body = [])
+	{
+		return $this->call('DELETE', $url, $body);
+	}
 
-	
-		
-		$ret=false;
+	protected function call($method, $url, $args = [])
+	{
+		$url = ltrim($url, "/");
+		if (!$url) return false;
 
-		try{
-			$response = $this->client->request($method, $url, $args);
-			if($this->debug){
-				Log::debug("STATUS:".$response->getStatusCode());
-				Log::debug("BODY:");
-				Log::debug($response->getBody());
+		try {
+			if ($this->debug) {
+				Log::debug("MailRelay: Calling $method to: " . $this->api_url . $url, $args);
 			}
 
-			switch($response->getStatusCode()){
-				case 200:
-				case 201:
-				case 204:
-					$ret = (string) $response->getBody();
-					
-					if(isJson($ret)){
-						$ret=json_decode($ret);
-						
-					}
-					
+			// Ejecución dinámica del método (get, post, put...)
+			$response = $this->client()->$method($url, $args);
 
-					break;
-				default: break;
+			if ($this->debug) {
+				Log::debug("STATUS: " . $response->status());
 			}
 
-			return $ret;
-		} catch (RequestException | ConnectException | ClientException $e) {
-			
-			return $this->parseException($e);
-		   
-		}
-		
-	}
-	
+			if ($response->successful()) {
+				return $response->object(); // Devuelve objeto stdClass (equivalente a json_decode)
+			}
 
-	private function parseException($e){
-		if($this->debug){
-			Log::error("MailRelay API error");
-			Log::error($e->getMessage());
+			return $this->handleError($response);
+		} catch (\Exception $e) {
+			throw new MailRelayConnectionException("Error conectando con Mailrelay: " . $e->getMessage());
 		}
-		// dd($e->hasResponse());
-		if ($e->hasResponse()) {
-			$status=$e->getResponse()->getStatusCode();
-		   switch($status){
-				   case 404:
-					//si no se encuentra, soporto la excepcion y devuelvo null
-					return null; 
-				case 401:
-					//Auth exception
-					throw new MailRelayAuthException(__("Mailrelay exception: The API key wasn't sent or is invalid")); break;
-				
-				default: break;
-				
-		   }
-		}else{
-			throw new MailRelayConnectionException(__("Mailrelay connection exception"));
-				
-		}
-		
 	}
 
+	protected function handleError($response)
+	{
+		$status = $response->status();
+
+		if ($this->debug) {
+			Log::error("MailRelay API error: " . $status, $response->json() ?? []);
+		}
+
+		return match ($status) {
+			404 => null,
+			401 => throw new MailRelayAuthException("API Key inválida o no enviada."),
+			422 => $response->object(), // Errores de validación
+			default => false,
+		};
+	}
 }

@@ -372,13 +372,47 @@ class MailRelayService
         return SmtpEmails::all();
     }
 
+
+    public function getSmtpEmailsByTag(string $tag, ?bool $includeMeta = false, ?array $parameters = [])
+    {
+        $args = ['q[smtp_tag_eq]' => $tag];
+        if ($includeMeta) {
+            $args['include_impressions'] = true;
+            $args['include_clicks'] = true;
+            $args['include_smtp_tags'] = true;
+        }
+        $args = array_merge($args, $parameters);
+        return SmtpEmails::search($args);
+    }
+
     public function getSmtpEmail($id)
     {
         return SmtpEmails::find($id);
     }
 
-    public function getSmtpEmailByMessageId($messageId)
+    public function getSmtpEmailByMessageId(string $messageId, ?bool $includeMeta = false, ?array $parameters = [])
     {
-        return SmtpEmails::search(['message_id_eq' => $messageId]);
+        $messageId = '<' . trim($messageId, "<>") . '>'; // Mailrelay a veces devuelve el message_id con <> y a veces sin
+
+        $args = ['q[message_id_eq]' => $messageId];
+        if ($includeMeta) {
+            $args['include_impressions'] = true;
+            $args['include_clicks'] = true;
+            $args['include_smtp_tags'] = true;
+        }
+        $args = array_merge($args, $parameters);
+        return SmtpEmails::search($args)->first();
+    }
+
+    public function getSmtpEmailsTo(string $email, ?bool $includeMeta = false, ?array $parameters = [])
+    {
+        $args = ['q[email_eq]' => $email];
+        if ($includeMeta) {
+            $args['include_impressions'] = true;
+            $args['include_clicks'] = true;
+            $args['include_smtp_tags'] = true;
+        }
+        $args = array_merge($args, $parameters);
+        return SmtpEmails::search($args);
     }
 }

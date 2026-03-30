@@ -60,7 +60,7 @@ trait IsRestClient
 	{
 		$url = ltrim($url, "/");
 		if (!$url) return false;
-
+		$method = strtolower($method);
 		try {
 			if ($this->debug) {
 				Log::debug("MailRelay: Calling $method to: " . $this->api_url . $url, $args);

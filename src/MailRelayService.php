@@ -367,13 +367,13 @@ class MailRelayService
         return collect($this->getSenders())->firstWhere('email', $email);
     }
 
-    public function getSmtpEmails()
+    public function getSmtpEmails(?int $page = null, ?int $per_page = null)
     {
-        return SmtpEmails::all();
+        return SmtpEmails::all($page, $per_page);
     }
 
 
-    public function getSmtpEmailsByTag(string $tag, ?bool $includeMeta = false, ?array $parameters = [])
+    public function getSmtpEmailsByTag(string $tag, ?bool $includeMeta = false, ?array $parameters = [], ?int $page = null, ?int $per_page = null)
     {
         $args = ['q[smtp_tag_eq]' => $tag];
         if ($includeMeta) {
@@ -382,7 +382,7 @@ class MailRelayService
             $args['include_smtp_tags'] = true;
         }
         $args = array_merge($args, $parameters);
-        return SmtpEmails::search($args);
+        return SmtpEmails::search($args, $page, $per_page);
     }
 
     public function getSmtpEmail($id)
@@ -390,7 +390,7 @@ class MailRelayService
         return SmtpEmails::find($id);
     }
 
-    public function getSmtpEmailByMessageId(string $messageId, ?bool $includeMeta = false, ?array $parameters = [])
+    public function getSmtpEmailByMessageId(string $messageId, ?bool $includeMeta = false, ?array $parameters = [], ?int $page = null, ?int $per_page = null)
     {
         $messageId = '<' . trim($messageId, "<>") . '>'; // Mailrelay a veces devuelve el message_id con <> y a veces sin
 
@@ -401,10 +401,10 @@ class MailRelayService
             $args['include_smtp_tags'] = true;
         }
         $args = array_merge($args, $parameters);
-        return SmtpEmails::search($args)->first();
+        return SmtpEmails::search($args, $page, $per_page)->first();
     }
 
-    public function getSmtpEmailsTo(string $email, ?bool $includeMeta = false, ?array $parameters = [])
+    public function getSmtpEmailsTo(string $email, ?bool $includeMeta = false, ?array $parameters = [], ?int $page = null, ?int $per_page = null)
     {
         $args = ['q[email_eq]' => $email];
         if ($includeMeta) {
@@ -413,6 +413,6 @@ class MailRelayService
             $args['include_smtp_tags'] = true;
         }
         $args = array_merge($args, $parameters);
-        return SmtpEmails::search($args);
+        return SmtpEmails::search($args, $page, $per_page);
     }
 }
